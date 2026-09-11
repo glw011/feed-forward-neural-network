@@ -53,28 +53,28 @@ public class NNp2{
 
   // Storage for weights and biases
   static double[][] bias = new double[HIDDEN_LAYERS][HIDDEN_SIZE];  // stores biases for all nodes in all hidden layers
-  static double[] biasL = new double[OUTPUT_SIZE];  // stores biases for all nodes in output layer
+  static double[] bias_out = new double[OUTPUT_SIZE];  // stores biases for all nodes in output layer
 
-  static double[][] w0 = new double[HIDDEN_SIZE][INPUT_SIZE];  // weights: input --> hidden layer
+  static double[][] weights_in = new double[HIDDEN_SIZE][INPUT_SIZE];  // weights: input --> hidden layer
   static double[][][] weights = new double[Math.max(0, HIDDEN_LAYERS-1)][HIDDEN_SIZE][HIDDEN_SIZE];  // all hidden layer --> hidden layer weights
-  static double[][] wL = new double[OUTPUT_SIZE][HIDDEN_SIZE];  // weights: hidden --> output layer
+  static double[][] weights_out = new double[OUTPUT_SIZE][HIDDEN_SIZE];  // weights: hidden --> output layer
   
   // Storage for activations in each hidden layer
-  static double[][] al;
+  static double[][] activs_hid;
 
   // Storage for weight gradients and errors
   static double[][] wG1 = new double[3][4];  // for printing weight gradients during testcheck (for part 1)
   static double[][] wG2 = new double[2][3];  // ... 
   
-  static double[] bLG, dL;  // stores bias gradient and errors for neurons in final layer (respectively)
-  static double[][] d, bG, wt0G, wtLG;  // stores errors and bias grads for each neuron in each hidden layer, weight gradient for each neuron from input and to output
-  static double[][][] wtG;  // stores weight gradients for each neuron in each hidden --> hidden layer
+  static double[] grad_bias_out, err_out;  // stores bias gradient and errors for neurons in final layer (respectively)
+  static double[][] err_hid, grad_bias_hid, grad_wts_in, grad_wts_out;  // stores errors and bias grads for each neuron in each hidden layer, weight gradient for each neuron from input and to output
+  static double[][][] grad_wts_hid;  // stores weight gradients for each neuron in each hidden --> hidden layer
 
   // Storage for tracking individual digit accuracy and misclassifications
-  static int[] digTotals;  // total number of expected correct classifications for each digit (0-9) recorded during last network test
-  static int[] digCorrect;  // number of correct classifications for each digit predicted by network during last network test
-  static List<Integer> misclassified = new ArrayList<>();  // list of testcase ids (i.e. index in set of all inputs for dataset) that were misclassified during last test (to print misclass images)
-  static List<double[]> misclassActivs = new ArrayList<>();  // stores network output corresponding to each misclassified input
+  static int[] class_correct_expect;  // total number of expected correct classifications for each digit (0-9) recorded during last network test
+  static int[] class_correct_real;  // number of correct classifications for each digit predicted by network during last network test
+  static List<Integer> misclass_idx = new ArrayList<>();  // list of testcase ids (i.e. index in set of all inputs for dataset) that were misclassified during last test (to print misclass images)
+  static List<double[]> misclass_activs = new ArrayList<>();  // stores network output corresponding to each misclassified input
 
   // Create DataSet objects for mnist test data and train data
   static final DataSet mnistTrain = new DataSet("mnist_train.csv", 60000, DataSet.Type.TRAIN);
@@ -117,7 +117,7 @@ public class NNp2{
     double[] prev = input;  // previous activations if j=0 are just input
     for(int j=0; j<HIDDEN_LAYERS; j++){  // move through each of the hidden layers...
       for (int k = 0; k < HIDDEN_SIZE; k++) {  // and for each neuron in the curr layer...
-        currWts = (j == 0) ? w0[k] : weights[j-1][k];  // use w0 if j=0, else use weights[j-1] as the weights to curr layer from previous
+        currWts = (j == 0) ? weights_in[k] : weights[j-1][k];  // use w0 if j=0, else use weights[j-1] as the weights to curr layer from previous
         zCurr[k] = vDot(currWts, prev);  // get z vals (w/o bias) from dot product of weights and previous activations
       }
       zOut = vAdd(zCurr, bias[j]); // add biases for curr layer to z vals
@@ -129,14 +129,14 @@ public class NNp2{
     // Output layer
     zCurr = new double[OUTPUT_SIZE];  // re-init zCurr for number of output nodes
     for(int n=0; n<OUTPUT_SIZE; n++){  // for each node in output layer...
-      zCurr[n] = vDot(wL[n], prev);  // get z vals (w/o bias) from dot prod of weights for curr node and activs from last hidden layer
+      zCurr[n] = vDot(weights_out[n], prev);  // get z vals (w/o bias) from dot prod of weights for curr node and activs from last hidden layer
     }
-    zOut = vAdd(zCurr, biasL);  // add biases for output layer to get real z vals for output layer
+    zOut = vAdd(zCurr, bias_out);  // add biases for output layer to get real z vals for output layer
     if(TESTCHECK) System.out.println("\t\t\tz2 = " + Arrays.toString(zOut) + "\n");  // just used to print the final z vals for part1
 
     output = getActivations(zOut);  // compute/store activations of output layer 
 
-    al = activations;  // update arrays storing activations of hidden layers
+    activs_hid = activations;  // update arrays storing activations of hidden layers
     return output;  // return activations of final output layer to caller
   }
 
@@ -150,27 +150,27 @@ public class NNp2{
     
     // Check if prediction matches correct label
     if(prediction == correct){
-      digCorrect[correct] += 1;  // Update count for correct classifications of the digit if prediction was correct
+      class_correct_real[correct] += 1;  // Update count for correct classifications of the digit if prediction was correct
     }
     // Otherwise add the digit to the current list of misclassifications
     else{
       // Add test case id to list of misclasses
-      misclassified.add(testCase);
+      misclass_idx.add(testCase);
       // store copy of resulting activations in final layer for misclass'd input
-      misclassActivs.add(aL.clone());
+      misclass_activs.add(aL.clone());
     }
     // Regardless of prediction, update count for total number of this digit tested
-    digTotals[correct] += 1;
+    class_correct_expect[correct] += 1;
   }
 
   // Perform backwards propagation algorithm on all inputs contained in batch passed as arg
   public static void backPropBatch(double[][] expectedOutBatch, double[][] inBatch){
     // init arrays for this batch
-    bG = new double[HIDDEN_LAYERS][HIDDEN_SIZE];  // stores bias gradients for each node in each hidden layer
-    bLG = new double[OUTPUT_SIZE];  // stores bias gradients for each node in output layer
-    wt0G = new double[HIDDEN_SIZE][INPUT_SIZE];  // stores wt grads for all nodes in hidden <-- input
-    wtG = new double[HIDDEN_LAYERS-1][HIDDEN_SIZE][HIDDEN_SIZE];  // stores wt grads for all nodes in all hidden <-- hidden
-    wtLG = new double[OUTPUT_SIZE][HIDDEN_SIZE];  // stores wt grads for all nodes in output <-- hidden
+    grad_bias_hid = new double[HIDDEN_LAYERS][HIDDEN_SIZE];  // stores bias gradients for each node in each hidden layer
+    grad_bias_out = new double[OUTPUT_SIZE];  // stores bias gradients for each node in output layer
+    grad_wts_in = new double[HIDDEN_SIZE][INPUT_SIZE];  // stores wt grads for all nodes in hidden <-- input
+    grad_wts_hid = new double[HIDDEN_LAYERS-1][HIDDEN_SIZE][HIDDEN_SIZE];  // stores wt grads for all nodes in all hidden <-- hidden
+    grad_wts_out = new double[OUTPUT_SIZE][HIDDEN_SIZE];  // stores wt grads for all nodes in output <-- hidden
 
     // Perform back prop for each set of inputs in the batch
     for(int i=0; i<inBatch.length; i++){
@@ -192,7 +192,7 @@ public class NNp2{
       // print activations for debugging
       if(DEBUG){
         for(int j=0; j<HIDDEN_LAYERS; j++){
-          System.out.println("\t\t\ta"+(j+1)+" = " + Arrays.toString(al[j]));
+          System.out.println("\t\t\ta"+(j+1)+" = " + Arrays.toString(activs_hid[j]));
         }
         System.out.println("\t\t\ta" + (HIDDEN_LAYERS+1) + " = " + Arrays.toString(aL_curr));
       }
@@ -206,12 +206,12 @@ public class NNp2{
       // print bias and weight gradients during functionality test
       if(TESTCHECK){
         // layer 1
-        System.out.println("\n\t\t\tbG1 = " + Arrays.toString(d[0]));
+        System.out.println("\n\t\t\tbG1 = " + Arrays.toString(err_hid[0]));
         System.out.println("\t\t\twG1 =\t" + Arrays.toString(wG1[0]));
         for(int j=1; j<3; j++) System.out.println("\t\t\t\t" + Arrays.toString(wG1[j]));
         
         // layer 2
-        System.out.println("\n\t\t\tbG2 = " + Arrays.toString(dL));
+        System.out.println("\n\t\t\tbG2 = " + Arrays.toString(err_out));
         System.out.println("\t\t\twG2 =\t" + Arrays.toString(wG2[0]));
         for(int j=1; j<2; j++) System.out.println("\t\t\t\t" + Arrays.toString(wG2[j]));
         
@@ -228,8 +228,8 @@ public class NNp2{
   // perform backwards propagation for a single input vector using resulting output activations and label
   private static void backPropagate(double[] input, double[] y_curr, double[] aL_curr){
     // store errors 
-    d = new double[HIDDEN_LAYERS][HIDDEN_SIZE];  
-    dL = new double[OUTPUT_SIZE]; 
+    err_hid = new double[HIDDEN_LAYERS][HIDDEN_SIZE];  
+    err_out = new double[OUTPUT_SIZE]; 
 
     // initialize arrays tracking weight gradients if functionality test
     if(TESTCHECK){
@@ -239,14 +239,14 @@ public class NNp2{
     
     // Output layer
     for(int i=0; i<aL_curr.length; i++){  // for each node in output layer...
-      dL[i] = (aL_curr[i]-y_curr[i])*aL_curr[i]*(1-aL_curr[i]);  // store the activation error of curr node in output layer
-      bLG[i] += dL[i];  // update sum of bias grad component for curr neuron in output layer
+      err_out[i] = (aL_curr[i]-y_curr[i])*aL_curr[i]*(1-aL_curr[i]);  // store the activation error of curr node in output layer
+      grad_bias_out[i] += err_out[i];  // update sum of bias grad component for curr neuron in output layer
     }
     
     // print cost and error for debugging
     if(DEBUG){
       System.out.println("\n\t\t\tcost = " + cost(aL_curr, y_curr) + "\n");
-      System.out.println("\t\t\td" + (HIDDEN_LAYERS+1) + " = " + Arrays.toString(dL));
+      System.out.println("\t\t\td" + (HIDDEN_LAYERS+1) + " = " + Arrays.toString(err_out));
     }
     
     // move backwards through each hidden layer, computing/storing error
@@ -256,10 +256,10 @@ public class NNp2{
       
       // set previous layer according to current layer
       if(l == HIDDEN_LAYERS-1){
-        dPrev = dL;  // if curr layer is final hidden layer: prev layer was output (i.e. error stored in dL)
-        wPrev = wL;  // ... weights from curr layer (l) to prev layer (l+1) are in wL
+        dPrev = err_out;  // if curr layer is final hidden layer: prev layer was output (i.e. error stored in dL)
+        wPrev = weights_out;  // ... weights from curr layer (l) to prev layer (l+1) are in wL
       } else {  // otherwise...
-        dPrev = d[l+1];  // prev layer is just l+1 for curr layer l (i.e. error in d[l+1])
+        dPrev = err_hid[l+1];  // prev layer is just l+1 for curr layer l (i.e. error in d[l+1])
         wPrev = weights[l];  // weights from curr layer l to l+1 are in weights[l]
       }
       
@@ -268,28 +268,28 @@ public class NNp2{
         double cSum = 0.0f;  // set current weighted sum of error for curr node k in layer l to l+1
         for(int j=0; j<dPrev.length; j++){  // and for each of j nodes in prev layer l+1...
           if(l == HIDDEN_LAYERS-1){
-            wtLG[j][k] += dPrev[j]*al[l][k];  // update grads for weights from l to l+1 (l+1 = output layer) for curr input
+            grad_wts_out[j][k] += dPrev[j]*activs_hid[l][k];  // update grads for weights from l to l+1 (l+1 = output layer) for curr input
           }
           else{
-            wtG[l][j][k] += dPrev[j]*al[l][k];  // update grads for weights from l to l+1 (l+1 = hidden layer) for curr input
+            grad_wts_hid[l][j][k] += dPrev[j]*activs_hid[l][k];  // update grads for weights from l to l+1 (l+1 = hidden layer) for curr input
           }
           cSum += wPrev[j][k]*dPrev[j];  // update weighted sum of error
         }
-        d[l][k] = cSum*al[l][k]*(1-al[l][k]);  // compute error for node k in current layer l 
-        bG[l][k] += d[l][k];  // add computed error for curr input to bias grad
+        err_hid[l][k] = cSum*activs_hid[l][k]*(1-activs_hid[l][k]);  // compute error for node k in current layer l 
+        grad_bias_hid[l][k] += err_hid[l][k];  // add computed error for curr input to bias grad
       }
       // Print errors for current layer for debugging
-      if(DEBUG) System.out.println("\t\t\td" + (l+1) + " = " + Arrays.toString(d[l]));
+      if(DEBUG) System.out.println("\t\t\td" + (l+1) + " = " + Arrays.toString(err_hid[l]));
     }
     
     // continue moving backwards from 1st hidden layer to input
-    double[] dPrev = d[0];  // error for prev layer (l+1) is d[0] when prev layer is 1st hidden layer      
+    double[] dPrev = err_hid[0];  // error for prev layer (l+1) is d[0] when prev layer is 1st hidden layer      
     for(int j=0; j<HIDDEN_SIZE; j++){  // for each node in 1st hidden layer l+1
       for(int k=0; k<INPUT_SIZE; k++){  // and for each node in input layer l
         if(TESTCHECK){
           wG1[j][k] = dPrev[j]*input[k];  // store grad for printing if test network for part1
         }
-        wt0G[j][k] += dPrev[j]*input[k];  // update grad for wt to node j in l+1 from node k in l
+        grad_wts_in[j][k] += dPrev[j]*input[k];  // update grad for wt to node j in l+1 from node k in l
       }
     }  
   }
@@ -309,9 +309,9 @@ public class NNp2{
     double c = ETA/(double)batchSize;  // calculate this constant that I'm sure has a name I'm not thinking of to use for updating weights
 
     // Update weights in w0 using computed constant and weight gradients
-    for(int i=0; i<w0.length; i++){
-      for(int j=0; j<w0[i].length; j++){
-        w0[i][j] -= c*wt0G[i][j];
+    for(int i=0; i<weights_in.length; i++){
+      for(int j=0; j<weights_in[i].length; j++){
+        weights_in[i][j] -= c*grad_wts_in[i][j];
       }
     }
 
@@ -319,28 +319,28 @@ public class NNp2{
     for(int i=0; i<weights.length; i++){
       for(int j=0; j<weights[i].length; j++){
         for(int k=0; k<weights[i][j].length; k++){
-          weights[i][j][k] -= c*wtG[i][j][k];
+          weights[i][j][k] -= c*grad_wts_hid[i][j][k];
         }
       }
     }
 
     // Update weights in wL
-    for(int i=0; i<wL.length; i++){
-      for(int j=0; j<wL[i].length; j++){
-        wL[i][j] -= c*wtLG[i][j];
+    for(int i=0; i<weights_out.length; i++){
+      for(int j=0; j<weights_out[i].length; j++){
+        weights_out[i][j] -= c*grad_wts_out[i][j];
       }
     }
 
     // Update biases in hidden layers
     for(int i=0; i<bias.length; i++){
       for(int j=0; j<bias[i].length; j++){
-        bias[i][j] -= c*bG[i][j];
+        bias[i][j] -= c*grad_bias_hid[i][j];
       }
     }
 
     // Update biases in output
-    for(int i=0; i<biasL.length; i++){
-      biasL[i] -= c*bLG[i];
+    for(int i=0; i<bias_out.length; i++){
+      bias_out[i] -= c*grad_bias_out[i];
     }
   }
 
@@ -349,9 +349,9 @@ public class NNp2{
     Random rand = new Random();
 
     // Input --> Hidden
-    for(int i=0; i<w0.length; i++){
-      for(int j=0; j<w0[i].length; j++){
-        w0[i][j] = rand.nextDouble()*2-1;
+    for(int i=0; i<weights_in.length; i++){
+      for(int j=0; j<weights_in[i].length; j++){
+        weights_in[i][j] = rand.nextDouble()*2-1;
       }
     }
 
@@ -365,9 +365,9 @@ public class NNp2{
     }
 
     // Hidden --> Output
-    for(int i=0; i<wL.length; i++){
-      for(int j=0; j<wL[i].length; j++){
-        wL[i][j] = rand.nextDouble()*2-1;
+    for(int i=0; i<weights_out.length; i++){
+      for(int j=0; j<weights_out[i].length; j++){
+        weights_out[i][j] = rand.nextDouble()*2-1;
       }
     }
 
@@ -379,8 +379,8 @@ public class NNp2{
     }
 
     // Output biases
-    for(int i=0; i<biasL.length; i++){
-      biasL[i] = rand.nextDouble()*2-1;
+    for(int i=0; i<bias_out.length; i++){
+      bias_out[i] = rand.nextDouble()*2-1;
     }
   }
 
@@ -400,10 +400,10 @@ public class NNp2{
     };
     double[] bL = {0.16f, -0.46f};
 
-    w0 = wt0;
+    weights_in = wt0;
     bias = b;
-    wL = wtL;
-    biasL = bL;
+    weights_out = wtL;
+    bias_out = bL;
   }
 
   // Public function called to begin training on a training dataset
@@ -423,8 +423,8 @@ public class NNp2{
       
       for(int epoch=0; epoch<EPOCHS; epoch++){
         if(DIGIT_TRACK){
-          digTotals = new int[10];
-          digCorrect = new int[10];
+          class_correct_expect = new int[10];
+          class_correct_real = new int[10];
         }
 
         order = Arrays.asList(staticIndxs); // create list from array containing original order of indices
@@ -454,8 +454,8 @@ public class NNp2{
         if(DIGIT_TRACK){
           System.out.println(String.format("Epoch %d Accuracy:\n", (epoch+1)));
           // Copy curr digit accuracy stats to send to print function
-          int[] correctDigs = Arrays.copyOf(digCorrect, digCorrect.length);
-          int[] totlDigs = Arrays.copyOf(digTotals, digTotals.length);
+          int[] correctDigs = Arrays.copyOf(class_correct_real, class_correct_real.length);
+          int[] totlDigs = Arrays.copyOf(class_correct_expect, class_correct_expect.length);
           printDigitAccuracy(setSize, correctDigs, totlDigs);
         }
       }
@@ -496,11 +496,11 @@ public class NNp2{
     double[] aL, y;  // init storage for curr output activations and expected output
 
     // Re-instant the storage arrays for tracking digit accuracy to all 0s
-    digTotals = new int[10];
-    digCorrect = new int[10];
+    class_correct_expect = new int[10];
+    class_correct_real = new int[10];
     // Clear current list of misclassifications and their corresponding activations
-    misclassified.clear();
-    misclassActivs.clear();
+    misclass_idx.clear();
+    misclass_activs.clear();
     // For each input in the set of inputs...
     for(int i=0; i<xSet.length; i++){
       aL = feedForward(xSet[i]);  // FF the curr input and store curr output
@@ -542,8 +542,8 @@ public class NNp2{
   // Public function which prints the current values for the weights in the network
   public static void printCurrWeights(){
     // Print all weights for input --> hidden (w0)
-    System.out.println("\tw1 = \t" + Arrays.toString(w0[0])); 
-    for(int i=1; i<HIDDEN_SIZE; i++) System.out.println("\t\t" + Arrays.toString(w0[i]));
+    System.out.println("\tw1 = \t" + Arrays.toString(weights_in[0])); 
+    for(int i=1; i<HIDDEN_SIZE; i++) System.out.println("\t\t" + Arrays.toString(weights_in[i]));
 
     int l = 0;  // storage for curr layer (index i=l-1)
     for(int i=0; i<HIDDEN_LAYERS; i++){
@@ -552,9 +552,9 @@ public class NNp2{
       System.out.println();  // \n
 
       if(i == HIDDEN_LAYERS-1){  // if curr layer is last hidden layer, weights to l+1 layer is wL
-        System.out.println("\tw" + (l+1) + " = \t" + Arrays.toString(wL[0]));
+        System.out.println("\tw" + (l+1) + " = \t" + Arrays.toString(weights_out[0]));
         for(int j=1; j<OUTPUT_SIZE; j++){  
-          System.out.println("\t\t" + Arrays.toString(wL[j]));
+          System.out.println("\t\t" + Arrays.toString(weights_out[j]));
         }
       } else {  // otherwise, weights to l+1 layer in weights
         for(int j=0; j<HIDDEN_SIZE; j++){
@@ -564,7 +564,7 @@ public class NNp2{
     }
 
     ++l;  // move to next layer (update val of l to reflect output layer)
-    System.out.println("\tb" + l + " = \t" + Arrays.toString(biasL) + "\n");  // print biases for output
+    System.out.println("\tb" + l + " = \t" + Arrays.toString(bias_out) + "\n");  // print biases for output
   }
 
    /* 
@@ -610,9 +610,9 @@ public class NNp2{
         String currRow;  // stores string containing next line of comma seperated vals to write to file
 
         // Input --> Hidden weights
-        for(int i=0; i<w0.length; i++){  // for each set of weights in w0
+        for(int i=0; i<weights_in.length; i++){  // for each set of weights in w0
           currRow = "";  // currRow reset to empty string
-          for(double val : w0[i]){  // for each weight in curr set of weights in w0
+          for(double val : weights_in[i]){  // for each weight in curr set of weights in w0
             currRow += val + delim;  // add the val of weight to string followed by delimeter
           }
           fw.append(currRow + "\n");  // write currRow (containing each weight in curr set of weights) to file
@@ -630,9 +630,9 @@ public class NNp2{
         }
 
         // Hidden --> Output weights
-        for(int i=0; i<wL.length; i++){
+        for(int i=0; i<weights_out.length; i++){
           currRow = "";
-          for(double val : wL[i]){
+          for(double val : weights_out[i]){
             currRow += val + delim;
           }
           fw.append(currRow + "\n");
@@ -649,7 +649,7 @@ public class NNp2{
         
         // Output biases
         currRow = "";  // reset to empty string
-        for(double val : biasL){  // for each bias in output layer...
+        for(double val : bias_out){  // for each bias in output layer...
           currRow += val + delim;  // add bias followed by delim to string
         }
         fw.append(currRow + "\n");  // write currRow containing output layer biases to file
@@ -694,12 +694,12 @@ public class NNp2{
         // Read through each line in file and store contained vals in appropriate weight/bias arrays
 
         // Input --> Hidden weights
-        w0 = new double[HIDDEN_SIZE][INPUT_SIZE];  // reset w0 to all 0 weight vals for network dimensions
+        weights_in = new double[HIDDEN_SIZE][INPUT_SIZE];  // reset w0 to all 0 weight vals for network dimensions
         for(int i=0; i<HIDDEN_SIZE; i++){  // for each node in hidden layer's set of weights... 
           line = br.readLine();  // read/store next line in file
           String[] tokens = line.split(delim);  // split line into String[] based on delim (each token being a weight val)
           for(int j=0; j<INPUT_SIZE; j++){  // for each node in input layer...
-            w0[i][j] = Double.parseDouble(tokens[j]);  // parse/store weight to curr node i (in 1st hidden layer) from curr node j (in input layer)
+            weights_in[i][j] = Double.parseDouble(tokens[j]);  // parse/store weight to curr node i (in 1st hidden layer) from curr node j (in input layer)
           }
         }
 
@@ -716,12 +716,12 @@ public class NNp2{
         }
 
         // Hidden --> Output weights
-        wL = new double[OUTPUT_SIZE][HIDDEN_SIZE];  // reset network weights to 0
+        weights_out = new double[OUTPUT_SIZE][HIDDEN_SIZE];  // reset network weights to 0
         for(int i=0; i<OUTPUT_SIZE; i++){  // for each node i in output..
           line = br.readLine();  // read next line in file
           String[] tokens = line.split(delim);  // split
           for(int j=0; j<HIDDEN_SIZE; j++){  // for each node j in hidden...
-            wL[i][j] = Double.parseDouble(tokens[j]);  // parse/store weight to i from j
+            weights_out[i][j] = Double.parseDouble(tokens[j]);  // parse/store weight to i from j
           } 
         }
 
@@ -736,11 +736,11 @@ public class NNp2{
         }
 
         // Output biases
-        biasL = new double[OUTPUT_SIZE];  // reset bias vals for nodes in output
+        bias_out = new double[OUTPUT_SIZE];  // reset bias vals for nodes in output
         line = br.readLine();  // read next line in file (should be final line)
         String[] tokens = line.split(delim);  // split
         for(int i=0; i<OUTPUT_SIZE; i++){  // for each node i in output layer...
-          biasL[i] = Double.parseDouble(tokens[i]);  // parse/store bias val for node i
+          bias_out[i] = Double.parseDouble(tokens[i]);  // parse/store bias val for node i
         }
 
         br.close();  // close buffered read stream
@@ -988,8 +988,8 @@ public class NNp2{
           getDigitAccuracy(mnistTrain);
           // Copy curr digit accuracy stats to send to print function 
           // ** started copying arrays rather than using globals trying to debug divide by zero exception in accuracy stats and never changed back after solving
-          int[] correctDigs = digCorrect.clone();
-          int[] totlDigs = digTotals.clone();
+          int[] correctDigs = class_correct_real.clone();
+          int[] totlDigs = class_correct_expect.clone();
           // Print the accuracy result for each digit after testing entire set
           printDigitAccuracy(mnistTrain.getSize(), correctDigs, totlDigs);
           // Wait for input from user before clearing terminal and returning to prev menu
@@ -1002,8 +1002,8 @@ public class NNp2{
           // Test entire testing dataset
           getDigitAccuracy(mnistTest);
           // Copy curr digit accuracy stats to send to print function
-          int[] correctDigs = digCorrect.clone();
-          int[] totlDigs = digTotals.clone();
+          int[] correctDigs = class_correct_real.clone();
+          int[] totlDigs = class_correct_expect.clone();
           // Print the accuracy results for each digit after testing entire set
           printDigitAccuracy(mnistTest.getSize(), correctDigs, totlDigs);
           console.readLine("\nPress ANY Key to Return to Current Network Menu");  
@@ -1228,10 +1228,10 @@ public class NNp2{
       Console console =  System.console();
       
       // For each misclassified digit, print: id, image, predict, label
-      for(int i=0; i<misclassified.size(); i++){
+      for(int i=0; i<misclass_idx.size(); i++){
         clearTerminal();  // clear terminal
-        curr_aL = misclassActivs.get(i);  // get network output for current misclass'd digit
-        idx = misclassified.get(i);  // get index for misclass'd input in set of all inputs
+        curr_aL = misclass_activs.get(i);  // get network output for current misclass'd digit
+        idx = misclass_idx.get(i);  // get index for misclass'd input in set of all inputs
         
         x = xSet[idx];  // get input for current misclass'd digit 
         currArt = getDigitArt(x);  // get string rep for misclass'd digit
