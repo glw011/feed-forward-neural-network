@@ -1,3 +1,4 @@
+package deprecated;
 import java.io.*;
 import java.util.*;
 
@@ -8,11 +9,13 @@ import java.util.*;
  * CSC-475                            *
  * Assigment 2: part 2                *
  * ************************************
- * Handwitten digit classifier using  *
- * fully-connected feedforward neural *
- * network using backpropagation and  *
- * stochastic gradient descent based  *
- * on the MNIST training and testing  *
+ * Handwitten digit classifier        *
+ *                                    *
+ * Fully-connected feedforward neural *
+ * network utilizing backpropagation  *
+ * and stochastic gradient descent to *
+ * learn and classify digits from the *
+ * public MNIST training and testing  *
  * data sets.                         *
  * ************************************
  */
@@ -164,30 +167,30 @@ public class NNp2{
   }
 
   // Perform backwards propagation algorithm on all inputs contained in batch passed as arg
-  public static void backPropBatch(double[][] expectedOutBatch, double[][] inBatch){
+  public static void backPropBatch(double[][] expected_out_batch, double[][] in_batch){
     // init arrays for this batch
     grad_bias_hid = new double[HIDDEN_LAYERS][HIDDEN_SIZE];  // stores bias gradients for each node in each hidden layer
     grad_bias_out = new double[OUTPUT_SIZE];  // stores bias gradients for each node in output layer
     grad_wts_in = new double[HIDDEN_SIZE][INPUT_SIZE];  // stores wt grads for all nodes in hidden <-- input
-    grad_wts_hid = new double[HIDDEN_LAYERS-1][HIDDEN_SIZE][HIDDEN_SIZE];  // stores wt grads for all nodes in all hidden <-- hidden
     grad_wts_out = new double[OUTPUT_SIZE][HIDDEN_SIZE];  // stores wt grads for all nodes in output <-- hidden
+    grad_wts_hid = new double[HIDDEN_LAYERS-1][HIDDEN_SIZE][HIDDEN_SIZE];  // stores wt grads for all nodes in all hidden <-- hidden
 
     // Perform back prop for each set of inputs in the batch
-    for(int i=0; i<inBatch.length; i++){
+    for(int i=0; i<in_batch.length; i++){
       // store curr set of input
-      double[] a0 = inBatch[i];
+      double[] a0 = in_batch[i];
 
       // print a0, y, and the training case for debugging
       if(DEBUG){
         System.out.println("\t\tTraining Case " + (i+1) + ":");
         System.out.println("\t\t\ta0 = " + Arrays.toString(a0));
-        System.out.println("\t\t\t y = " + Arrays.toString(expectedOutBatch[i]) + "\n");
+        System.out.println("\t\t\t y = " + Arrays.toString(expected_out_batch[i]) + "\n");
       }
 
       // store output from feed forward curr set of input
       double[] aL_curr = feedForward(a0);
       // store y for curr set of input
-      double[] y_curr = expectedOutBatch[i];
+      double[] y_curr = expected_out_batch[i];
 
       // print activations for debugging
       if(DEBUG){
@@ -220,7 +223,7 @@ public class NNp2{
     }
 
     // Update weights and print them if debugging
-    updateWeights(inBatch.length);
+    updateWeights(in_batch.length);
     if(DEBUG) System.out.println("\t REVISED WEIGHTS");
     if(DEBUG) printCurrWeights();
   }
@@ -251,31 +254,31 @@ public class NNp2{
     
     // move backwards through each hidden layer, computing/storing error
     for(int l=HIDDEN_LAYERS-1; l>=0; l--){  // for each hidden layer...
-      double[] dPrev;  // stores errors from prev (l+1) layer
-      double[][] wPrev;  // stores weights for all nodes in prev layer (l+1) <-- curr layer (l)
+      double[] err_prev;  // stores errors from prev (l+1) layer
+      double[][] wts_prev;  // stores weights for all nodes in prev layer (l+1) <-- curr layer (l)
       
       // set previous layer according to current layer
       if(l == HIDDEN_LAYERS-1){
-        dPrev = err_out;  // if curr layer is final hidden layer: prev layer was output (i.e. error stored in dL)
-        wPrev = weights_out;  // ... weights from curr layer (l) to prev layer (l+1) are in wL
+        err_prev = err_out;  // if curr layer is final hidden layer: prev layer was output (i.e. error stored in dL)
+        wts_prev = weights_out;  // ... weights from curr layer (l) to prev layer (l+1) are in wL
       } else {  // otherwise...
-        dPrev = err_hid[l+1];  // prev layer is just l+1 for curr layer l (i.e. error in d[l+1])
-        wPrev = weights[l];  // weights from curr layer l to l+1 are in weights[l]
+        err_prev = err_hid[l+1];  // prev layer is just l+1 for curr layer l (i.e. error in d[l+1])
+        wts_prev = weights[l];  // weights from curr layer l to l+1 are in weights[l]
       }
       
       // compute and store the gradients and error for curr layer
       for(int k=0; k<HIDDEN_SIZE; k++){  // for each of k nodes in curr layer l...
-        double cSum = 0.0f;  // set current weighted sum of error for curr node k in layer l to l+1
-        for(int j=0; j<dPrev.length; j++){  // and for each of j nodes in prev layer l+1...
+        double weighted_sum_err = 0.0f;  // set current weighted sum of error for curr node k in layer l to l+1
+        for(int j=0; j<err_prev.length; j++){  // and for each of j nodes in prev layer l+1...
           if(l == HIDDEN_LAYERS-1){
-            grad_wts_out[j][k] += dPrev[j]*activs_hid[l][k];  // update grads for weights from l to l+1 (l+1 = output layer) for curr input
+            grad_wts_out[j][k] += err_prev[j]*activs_hid[l][k];  // update grads for weights from l to l+1 (l+1 = output layer) for curr input
           }
           else{
-            grad_wts_hid[l][j][k] += dPrev[j]*activs_hid[l][k];  // update grads for weights from l to l+1 (l+1 = hidden layer) for curr input
+            grad_wts_hid[l][j][k] += err_prev[j]*activs_hid[l][k];  // update grads for weights from l to l+1 (l+1 = hidden layer) for curr input
           }
-          cSum += wPrev[j][k]*dPrev[j];  // update weighted sum of error
+          weighted_sum_err += wts_prev[j][k]*err_prev[j];  // update weighted sum of error
         }
-        err_hid[l][k] = cSum*activs_hid[l][k]*(1-activs_hid[l][k]);  // compute error for node k in current layer l 
+        err_hid[l][k] = weighted_sum_err*activs_hid[l][k]*(1-activs_hid[l][k]);  // compute error for node k in current layer l 
         grad_bias_hid[l][k] += err_hid[l][k];  // add computed error for curr input to bias grad
       }
       // Print errors for current layer for debugging
@@ -283,13 +286,13 @@ public class NNp2{
     }
     
     // continue moving backwards from 1st hidden layer to input
-    double[] dPrev = err_hid[0];  // error for prev layer (l+1) is d[0] when prev layer is 1st hidden layer      
+    double[] err_prev = err_hid[0];  // error for prev layer (l+1) is d[0] when prev layer is 1st hidden layer      
     for(int j=0; j<HIDDEN_SIZE; j++){  // for each node in 1st hidden layer l+1
       for(int k=0; k<INPUT_SIZE; k++){  // and for each node in input layer l
         if(TESTCHECK){
-          wG1[j][k] = dPrev[j]*input[k];  // store grad for printing if test network for part1
+          wG1[j][k] = err_prev[j]*input[k];  // store grad for printing if test network for part1
         }
-        grad_wts_in[j][k] += dPrev[j]*input[k];  // update grad for wt to node j in l+1 from node k in l
+        grad_wts_in[j][k] += err_prev[j]*input[k];  // update grad for wt to node j in l+1 from node k in l
       }
     }  
   }
@@ -306,7 +309,7 @@ public class NNp2{
 
   // updates the weights in the network according to currently stored gradient vals
   private static void updateWeights(int batchSize){
-    double c = ETA/(double)batchSize;  // calculate this constant that I'm sure has a name I'm not thinking of to use for updating weights
+    double c = ETA/(double)batchSize;  // calculate constant with name I forgot
 
     // Update weights in w0 using computed constant and weight gradients
     for(int i=0; i<weights_in.length; i++){
