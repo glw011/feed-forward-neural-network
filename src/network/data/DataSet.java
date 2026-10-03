@@ -1,4 +1,4 @@
-package source.data;
+package src.network.data;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -7,9 +7,8 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.Optional;
 
+/* TODO: Change type of exceptions thrown once custom exceptions are implemented (caught in CLI logic) */
 public class DataSet {
-      
-
     String name;
     String filepath;  // filename for the csv containing data which makes up the data set
     DataSetType type;  // data set type enum
@@ -53,11 +52,11 @@ public class DataSet {
     /* TODO: Temp no-arg constructor DELETE ONCE DataSet fully implemented */
     DataSet() {}
 
-    public DataSet newDataSet(String name, DataSetType type, double[][] inputs, double[][] labels) throws Exception {
+    public static DataSet newDataSet(String name, DataSetType type, double[][] inputs, double[][] labels) throws Exception {
         return new DataSet(name, type, inputs, labels);
     }
 
-    public DataSet newDataSetFromFile(String name, DataSetType type, int outputSize, String filepath) throws Exception {
+    public static DataSet newDataSetFromFile(String name, DataSetType type, int outputSize, String filepath) throws Exception {
         return new DataSet(name, type, outputSize, filepath);
     }
 

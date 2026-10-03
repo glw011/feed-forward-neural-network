@@ -1,4 +1,4 @@
-package source.data;
+package src.network.data;
 
 public enum DataSetType {
     TEST, 

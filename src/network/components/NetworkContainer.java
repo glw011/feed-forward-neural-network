@@ -1,6 +1,6 @@
-package source.network;
+package src.network.components;
 
-import source.data.DataSet;
+import src.network.data.DataSet;
 
 public class NetworkContainer {
     NeuralNetwork network;
@@ -26,4 +26,17 @@ public class NetworkContainer {
     public void setNetwork(NeuralNetwork network) {this.network = network;}
     public void setTrainingData(DataSet trainingData) {this.trainingData = trainingData;}
     public void setTestingData(DataSet testingData) {this.testingData = testingData;}
+    
+    public boolean loadNetwork(String networkFilename) {
+        /* TODO: Not implemented 
+                method is passed a valid "mynet.nn" filename 
+                needs to: 
+                    import/create NeuralNetwork importedNetwork from that file 
+                    this.setNetwork(importedNetwork)
+                    return true
+                otherwise
+                    return false 
+        */
+       return false;
+    }
 }

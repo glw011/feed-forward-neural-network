@@ -1,8 +1,8 @@
-package source.persist;
+package src.network.persist;
 
-import source.config.NetworkConfig;
-import source.network.Layer;
-import source.network.ActivFunction;
+import src.network.components.ActivFunction;
+import src.network.components.Layer;
+import src.network.config.NetworkConfig;
 
 public class NetworkSnapshot {
     String name;

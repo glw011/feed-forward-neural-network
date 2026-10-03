@@ -1,12 +1,21 @@
+package src.interfaces.cli;
+
 import java.io.Console;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
-import source.config.NetworkConfig;
-import source.data.DataSet;
-import source.data.DataSetType;
-import source.network.NeuralNetwork;
-import source.network.NetworkContainer;
+import src.network.config.NetworkConfig;
+import src.network.data.DataSet;
+import src.network.data.DataSetType;
+import src.network.components.NeuralNetwork;
+import src.network.components.NetworkContainer;
 
  /*
     USER STORIES
@@ -15,16 +24,9 @@ import source.network.NetworkContainer;
       * implement `customNetworkIsUnsaved` flag  and relevant checks when `status = 9` is returned in `neuralNetworkCli()`
  */
 
-public class MnistCli {
+public class NetworkCli {
 
-
-    public static void main(String[] args) {
-        System.out.println("AYYYYY");
-    }
-
-
-
-
+    static List<Path> savedNetworks = null;
 
     private enum MenuState {
         NET_SELECT,
@@ -51,7 +53,6 @@ public class MnistCli {
         }
 
         MenuState menu = MenuState.NET_SELECT;
-        boolean networkIsReady = false;
 
         NetworkContainer neuralNet = new NetworkContainer();
 
@@ -75,20 +76,28 @@ public class MnistCli {
             } else if(menu == MenuState.CUSTOM_NET) {
                 status = newCustomNetMenu(console, neuralNet);
                 if(status == 1) {
-                    if(neuralNet.network() == null) throw new UnknownError("custom network was successfully configured but is null");
+                    if(neuralNet.network() == null) 
+                        throw new UnknownError("custom network was successfully configured but is null");
                     
                     // 1 is returned && network is not null  -->  network configured successfully and ready to set datasets
                     menu = MenuState.SET_DATA;
                 }
             } else if(menu == MenuState.LOAD_NET) {
-                status = loadNetworkMenu(console);
-                
-                /* TODO: not finished */
+                status = loadNetworkMenu(console, neuralNet);
+                if(status == 1) {
+                    if(neuralNet.network() == null) 
+                        throw new UnknownError("custom network was successfully configured but is null");
+                    
+                    // 1 is returned && network is not null  -->  network configured successfully and ready to set datasets
+                    menu = MenuState.SET_DATA;
+                }
             } else if(menu == MenuState.SET_DATA) {
                 status = selectDatasetsMenu(console, neuralNet);
                 
-                /* TODO: not finished */
                 if(status == 1) {
+                    if(neuralNet.trainingData() == null || neuralNet.testingData() == null)
+                        throw new UnknownError("DataSets were successfully selected but 1 or more is null");
+
                     menu = MenuState.NETWORK;
                 } else if(status == 2) {
                     menu = MenuState.SET_DATA;
@@ -104,11 +113,55 @@ public class MnistCli {
         }
     }
 
-    /* TODO: Not implemented */
-    private static int networkMenu(Console console) {
-        String in = "";
-        int select = -1;
+    /*
+      Network menu
+      [1] Network Testing submenu
+            * Test Network (Using Current Testing Config)               **REQUIRES TRAINING STATUS: TRAINED**
+            * Previous Test's Overall Accuracy Stats
+            * Current Testing Configuration
+                + Testing Dataset
+                + Image/Label Setting
+            * Adjust Testing Configuration
+                + Change Image/Label Setting
+                    - Images/Labels for all inputs
+                    - Images/Labels only for misclassified inputs
+                    - No Images/Labels  
+                + Change Testing Dataset
+                    - Choose Previously Saved Testing Dataset
+                    - Import New Testing Dataset from File
+      [2] Network Training submenu
+            * Current Training Status: 'Trained' || 'Untrained'
+            * Re-/Train Network (Using Current Training Config)         **BASED ON TRAINING STATUS**
+            * Current Training Configuration
+                + Training Dataset
+                + Epochs
+                + Batch Size
+                + Learning Rate
+            * Adjust Training Configuration                             **INFORM THAT ANY ADJUSTMENT CHANGES STATUS TO UNTRAINED**
+                + Change Training Settings
+                    - Epochs
+                    - Batch Size
+                    - Learning Rate
+                + Change Training Dataset
+                    - Previously Saved Training Dataset
+                    - New Training Dataset From File                               
+      [3] Network Inference submenu                                   **COMMENT OUT UNTIL FEATURE IS IMPLEMENTED SO LINE IS NOT INCLUDED IN MENU STRING**
+            * ...
+            * ...
+      [4] Network Weights & Biases submenu
+            * Import                                                    **NEED TO VERIFY MATCH WITH NETWORK SPECS**
+            * Export
+                + CSV
+                + (eventually other formats will be added) 
+            * Randomize Weights & Biases                                **INFORM THAT RANDOMIZING WILL CHANGE STATUS TO UNTRAINED**
+      [5] Save Network State submenu
 
+      [9] Return to 'Network Selection' menu
+      [0] Exit Interface
+     */
+    private static int networkMenu(Console console) {
+        int select = -1;
+        
         String netMenu = "\t\t - MNIST Digit Classifier -\n\nNetwork Menu\n";
         netMenu += "\t[3] : Display network accuracy on MNIST training data\n";
         netMenu += "\t[4] : Display network accuracy on MNIST testing data\n";
@@ -119,41 +172,22 @@ public class MnistCli {
         netMenu += "\t[9] : Return to 'Network Selection' menu\n";
         netMenu += "\t[0] : Exit Interface\n\n";
         netMenu += "Enter Selection: ";
+        
+        /* TODO: Not finished */
 
         return select;
     }
 
     private static int netSelectMenu(Console console) {
-        String in = "";
-        int select = -1;
-
         String selectMenu = "\t\t - MNIST Digit Classifier -\n\nNetwork Selection Menu\n";
         selectMenu += "\t[1] : Create new network to train\n";
-        selectMenu += "\t[2] : Load previously trained network\n\n";
+        selectMenu += "\t[2] : Load previously saved network state\n\n";
         selectMenu += "\t[0] : Exit interface\n\nEnter selection: ";
-
         
-        while(true) {
-            clearTerminal();
-            try {
-                in = console.readLine(selectMenu);
-                select = Integer.parseInt(in);
-                if(select >= 0 && select < 3) return select;
-            } catch(NumberFormatException e) {
-                clearTerminal();
-                console.readLine(
-                        String.format("\n\nInvalid input: '%s' is not a valid selection...\n\nPress ANY key to return to previous menu...\n", in));
-            }
-            clearTerminal();
-            console.readLine(
-                    String.format("\n\nInvalid input: '%d' is not a valid selection...\n\nPress ANY key to return to previous menu...\n", select));
-        }
+        return promptUserForSelection(console, selectMenu, new int[] {0, 1, 2});
     }
 
-    /* TODO: Not implemented */
     private static int newNetworkMenu(Console console) {
-        int select = -1;
-
         String newNetMenu = "\t\t -+-  Neural Network  -+-\n\nNetwork Creation Menu\n";
         newNetMenu += "\t[1] : Create new default MNIST digit classify network\n";
         newNetMenu += "\t[2] : Create new custom neural network\n\n";
@@ -161,29 +195,59 @@ public class MnistCli {
         newNetMenu += "\t[0] : Exit interface\n\n";
         newNetMenu += "Enter selection: ";
 
-        return select;
+        return promptUserForSelection(console, newNetMenu, new int[] {0, 9, 1, 2});
     }
 
-    /* TODO: Not implemented */
-    private static int loadNetworkMenu(Console console) {
+    private static int loadNetworkMenu(Console console, NetworkContainer neuralNet) {
         int select = -1;
 
+        String savedNetworksStr = "";
+
         String loadNetMenu = "\t\t -+-  Neural Network  -+-\n\nLoad Network Menu\n";
-        loadNetMenu += "\t[1] : Load previously saved network state\n";
-        loadNetMenu += "\t[2] : Import network weights & biases from CSV\n\n";
+        loadNetMenu += "\t[1] : Load previously saved network by name\n";
+        loadNetMenu += "\t[2] : List names of previously saved networks\n\n";
         loadNetMenu += "\t[9] : Return to 'Network Selection' menu\n";
         loadNetMenu += "\t[0] : Exit interface\n\n";
         loadNetMenu += "Enter selection: ";
+        
+        while(true) {
+            select = promptUserForSelection(console, loadNetMenu, new int[] {0, 9, 1, 2});
+            if(select == 0 || select == 9) return select;
+            
+            if(select == 1) {
+                String inputNetName = "\t\t -+-  Neural Network  -+-\n\nEnter name of previously saved network (case-sensitive)...\n";
+                inputNetName += "Enter name: ";
 
-        return select;
+                String in, netFilenameStr, selectedNet;
+                in = "";
+                netFilenameStr = "%s.nn";
+
+                try {
+                    clearTerminal(console);
+                    in = console.readLine(inputNetName);
+                    selectedNet = String.format(netFilenameStr, in);
+                    
+                    if(!networkFilenameIsValidSavedNetwork(selectedNet)) throw new FileNotFoundException();
+                    
+                    if(neuralNet.loadNetwork(selectedNet)) return 1;
+                    else throw new UnknownError("failed to load network from valid filename");
+
+                } catch(FileNotFoundException e) {
+                    clearTerminal(console);
+                    console.readLine(
+                            String.format("Invalid Network Name: No saved network with name '%s' exists!\n\nPress 'Enter' to return to previous menu...\n", in));
+                    select = -1;
+                }
+            } else if(select == 2) {
+                if(savedNetworksStr.isEmpty() || savedNetworksStr == null) savedNetworksStr = getSavedNetworksStr();
+                displayInfoToUser(console, savedNetworksStr);
+                select = -1;
+            }
+        }
     }
 
-    /* TODO: Not implemented */
-    private static void trainNetwork(NeuralNetwork network, DataSet dataset) {}
-
-    /* TODO: Unfinished */
     private static int selectDatasetsMenu(Console console, NetworkContainer neuralNet) {
-        // returns:  1 -> Dataset selected,  2 -> Return to select datasets menu,  0 -> Exit,  9 -> Network select,  -1 -> Error
+        // returns:  1 -> Both DataSet were selected,  2 -> Return to select datasets menu,  0 -> Exit,  9 -> Network select,  -1 -> Error
         int select = -1;
 
         String selectDataMenu = "\t\t -+-  Neural Network  -+-\n\nSelect Datasets Menu\n";
@@ -248,7 +312,72 @@ public class MnistCli {
                 return -1;
             }
         } else if(select == 2) {
-            /* TODO: implement logic */
+            String trainFilename, testFilename, setTypeImportPrompt, inputFilePathPrompt, pathStr, filename, ext;
+            trainFilename = testFilename = "NOT Selected...";
+
+            String setTypeImportStr = "\t\t -+-  Neural Network  -+-\n\nImport Datasets Menu\n";
+            setTypeImportStr += "\t[1] : Import training dataset\n";
+            setTypeImportStr += "\t      Training dataset selected:  %s\n";
+            setTypeImportStr += "\t[2] : Import testing dataset\n";
+            setTypeImportStr += "\t      Testing dataset selected:   %s\n\n";
+            setTypeImportStr += "\t[9] : Return to 'Network Selection' menu\n";
+            setTypeImportStr += "\t[0] : Exit interface\n\n";
+            setTypeImportStr += "Enter selection: ";
+
+            String inputFilePathStr =  "\t\t -+-  Neural Network  -+-\n\nImport Dataset From File\n\n";
+            inputFilePathStr += "Please input the desired %s filename as an ABSOLUTE path...\n";
+            inputFilePathStr += "Enter filename: ";
+
+            Path path;
+            boolean trainIsSet, testIsSet;
+            trainIsSet = testIsSet = false;
+            while(true) {
+                try {
+                    setTypeImportPrompt = String.format(setTypeImportStr, trainFilename, testFilename);
+                    select = promptUserForSelection(console, setTypeImportPrompt, new int[] {0, 9, 1, 2});
+                    if(select == 0 || select == 9) return select;
+
+                    /* TODO: add menu asks whether to import prev saved data from `resources/data/user/` or input an absolute path to new data and copy it to `resources/data/user/` */
+                    /* TODO: then loop: menu asking for unique name to assign to dataset, prompts options to use filename or input new unique name, verify no file with name exists in  
+                            `resources/data/user/` and copy file as name (appended with OG file extension) if no file exists; otherwise restart loop */
+                    /* TODO: dataset file should always be present in `resources/data/user` and then the relative path to file can be passed to create the new DataSet */
+
+                    inputFilePathPrompt = String.format(
+                                                    inputFilePathStr,
+                                                    (select == 1) ? "training" : "testing");
+                    
+                    pathStr = console.readLine(inputFilePathPrompt);
+                    path = Paths.get(pathStr);
+                    if(Files.exists(path) && !Files.isDirectory(path)) {
+                        filename = path.getFileName().toString();
+                        DataSet dataset = DataSet.newDataSetFromFile(
+                                                                filename, 
+                                                                (select == 1) ? DataSetType.TRAIN : DataSetType.TEST, 
+                                                                neuralNet.network().outputSize(), 
+                                                                pathStr);
+
+                        if(select == 1) {
+                            neuralNet.setTrainingData(dataset);
+                            trainFilename = filename;
+                            trainIsSet = true;
+                        } else if(select == 2) {
+                            neuralNet.setTestingData(dataset);
+                            testFilename = filename;
+                            testIsSet = true;
+                        } else throw new Exception();
+
+                        if(trainIsSet && testIsSet) return 1;
+                    } else {
+                        clearTerminal(console);
+                        console.readLine(
+                                    String.format("\n\nFile Not Found: The file '%s' is invalid or does not exist...\n\nPlease verify the path where the file exists and try again.\n\nPress 'Enter' key to return to previous menu...\n", pathStr));
+                        select = -1;
+                    }
+                /* TODO: Handle the custom exceptions thrown by DataSet once custom exceptions are implemented */
+                } catch(Exception e) {
+                    /* TODO: Handle the exception thrown */
+                }
+            }
         }
         
         return -1;
@@ -358,7 +487,7 @@ public class MnistCli {
                                     break;
                                 } else if(k == 2) break;
                                 else console.readLine(String.format(
-                                        "\n\nInvalid input: Failed to parse user response '%d'...\nPlease ensure your responses are valid values and then try again.\n\nPress ANY key to return to previous menu...\n", k));
+                                        "\n\nInvalid input: Failed to parse user response '%d'...\nPlease ensure your responses are valid values and then try again.\n\nPress 'Enter' to return to previous menu...\n", k));
                             }
                         }
                         if(!validParams[3]) {
@@ -383,7 +512,7 @@ public class MnistCli {
                                     if(curr > 0) break;
                                     else {
                                         clearTerminal();
-                                        console.readLine(String.format("\n\nInvalid layer size: A layer cannot be configured with a size of %d!\nPlease use valid positive integers to indicate layer sizes.\n\nPress ANY key to return to previous menu...\n", curr));
+                                        console.readLine(String.format("\n\nInvalid layer size: A layer cannot be configured with a size of %d!\nPlease use valid positive integers to indicate layer sizes.\n\nPress 'Enter' to return to previous menu...\n", curr));
                                     }
                                 }
                                 
@@ -401,7 +530,7 @@ public class MnistCli {
                             validParams[3] = true;
                         } else {
                             clearTerminal();
-                            console.readLine("Cannot configure hidden layer sizes until the total number of hidden layers has been set!\nPlease indicate the total number of hidden layers and then configure their sizes here.\n\nPress ANY key to return to previous menu...\n");
+                            console.readLine("Cannot configure hidden layer sizes until the total number of hidden layers has been set!\nPlease indicate the total number of hidden layers and then configure their sizes here.\n\nPress 'Enter' to return to previous menu...\n");
                         }
                     } else if(select == 5) {
                         result = getIntConfigInput(console, "Training Batch Size...\n\nEnter valid positive integer value: ", 0, 200);
@@ -498,7 +627,7 @@ public class MnistCli {
                             missing += "\n\n";
                             String miss = "Failed to create custom network!\nThere are missing network parameters that are not configured...\n\nMissing Network Parameters:\n%s\n\n";
                             console.printf(miss, missing);
-                            console.readLine("Please configure the missing network parameters and try again.\n\nPress ANY key to return to previous menu...\n");
+                            console.readLine("Please configure the missing network parameters and try again.\n\nPress 'Enter' to return to previous menu...\n");
                         }
                     }
                 }
@@ -518,7 +647,7 @@ public class MnistCli {
             } catch(NumberFormatException e) {
                 clearTerminal();
                 console.readLine(
-                        String.format("\n\nInvalid input: Failed to parse user response '%s'...\nPlease ensure your responses are valid and then try again.\n\nPress ANY key to return to previous menu...\n", in));
+                        String.format("\n\nInvalid input: Failed to parse user response '%s'...\nPlease ensure your responses are valid and then try again.\n\nPress 'Enter' to return to previous menu...\n", in));
             }
         }    
     }
@@ -561,6 +690,62 @@ public class MnistCli {
         console.writer().flush();
     }
 
+    private static void updateSavedNetworksList() {
+        savedNetworks = null;
+
+        String pathStr = "src/resources/networks";
+        Path networkDir = Paths.get(pathStr).toAbsolutePath().normalize();      // Need to look at docs to see if abs/normalize steps are necessary
+        
+        try (Stream<Path> stream = Files.walk(networkDir)) {
+            savedNetworks = stream.filter(Files::isRegularFile)
+                                    .filter(path -> path.getFileName().toString().endsWith(".nn"))
+                                    .collect(Collectors.toList());
+
+            if(savedNetworks == null) throw new UnknownError("list of saved networks updated but still null");
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new UnknownError("failed to update list of saved networks");
+        }
+    }
+
+    private static String getSavedNetworksStr() {
+        if(savedNetworks.isEmpty() || savedNetworks == null) updateSavedNetworksList();
+
+        String networksListStr = "\t\t -+-  Neural Network  -+-\n\nSaved Networks...\n";
+        String netStr = "\t %s \n";
+
+        int dotIdx;
+        String currStr;
+        for(Path network : savedNetworks) {
+            currStr = network.getFileName().toString();
+            if(currStr.isEmpty() || currStr == null) continue;
+
+            dotIdx = currStr.lastIndexOf(".nn");
+            if(dotIdx < 0) throw new UnknownError(String.format("failed to process network filename: '%s'", currStr));
+
+            networksListStr += String.format(netStr, currStr.substring(0, dotIdx));
+        }
+
+        return networksListStr;
+    }
+
+    private static void displayInfoToUser(Console console, String info) {
+        String infoPrompt = String.format("%s", info);
+
+        infoPrompt += "\nPress 'Enter' to return to previous menu...\n";
+
+        clearTerminal(console);
+        console.readLine(infoPrompt);
+    }
+
+    private static boolean networkFilenameIsValidSavedNetwork(String filename) {
+        if(savedNetworks.isEmpty() || savedNetworks == null) updateSavedNetworksList();
+        return savedNetworks.stream()
+                            .map(Path::getFileName)
+                            .filter(java.util.Objects::nonNull)
+                            .anyMatch(file -> file.toString().equals(filename));
+    }
+
     private static int confirmConfiguration(Console console, String confirmPrompt) {
         String in = "";
         int select = -1;
@@ -574,49 +759,12 @@ public class MnistCli {
             } catch(NumberFormatException e) {
                 clearTerminal();
                 console.readLine(
-                        String.format("\n\nInvalid input: '%s' is not a valid selection...\n\nPress ANY key to change your selection...\n", in));
+                        String.format("\n\nInvalid input: '%s' is not a valid selection...\n\nPress 'Enter' to return and change your selection...\n", in));
                 select = -1;
             }
         }
-    } 
-
-    private static DataSet readDataFromFile(Console console, String filepath) {
-        DataSet dataset = null;
-        DataSetType datasetType = null;
-
-        String filename = "";
-        int select = -1;
-        
-        String typePrompt = "\t\t -+-  New Neural Network  -+-\n\n";
-        typePrompt += "Data set filename\n";
-        typePrompt += "Please enter the filename containing the data...";
-        typePrompt += "Enter filename: ";
-
-        while(true) {
-            try {
-                clearTerminal();
-                filename = console.readLine(typePrompt);
-
-                
-
-            } catch(NumberFormatException e) {
-                clearTerminal();
-                console.readLine(
-                        String.format("\n\nInvalid input: '%s' is not a valid selection...\n\nPress ANY key to return to previous menu...\n", filename));
-            } //catch(FileNotFoundException e) {
-
-            //}
-            break;  // REMOVE ME
-        }
-
-
-        
-
-
-        return dataset;
     }
 
-    /* TODO: refactor menus to use this method and consolidate code */
     private static int promptUserForSelection(Console console, String prompt, int[] validOptions) {
         String in = "";
         int select = -1;
@@ -633,83 +781,17 @@ public class MnistCli {
             } catch(NumberFormatException e) {
                 clearTerminal();
                 console.readLine(
-                        String.format("\n\nInvalid input: '%s' is not a valid selection...\n\nPress ANY key to change your selection...\n", in));
+                        String.format("\n\nInvalid input: '%s' is not a valid selection...\n\nPress 'Enter' to return to previous menu and change your selection...\n", in));
                 select = -1;
             }
         }
     }
 
 
+    private record ConfigInput(String inputStr, int input) {}
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-  // Simple interface shown when user selects create new network, allowing user select from starting training, return to network select menu, or exit
   /*
-  private static boolean startTrainingMenu(){
-    String choice;  // stores curr user input resulting from prev prompt
-  
- 
-    //      - MNIST Digit Classifier -
-    // 
-    // New Network Menu
-    //    [1] : Begin Training on MNIST Training Data
-    //    
-    //    [9] : Return to Select Network Menu 
-    //    [0] : Exit Interface
-    // 
-    // Enter Selection: 
-    // 
-    // Create string showing menu options
-    String trainMenu = "\t\t - MNIST Digit Classifier -\n\nNew Network Menu\n";
-    trainMenu += "\t[1] : Begin Training on MNIST Training Data\n\n";
-    trainMenu += "\t[9] : Return to Select Network Menu\n";
-    trainMenu += "\t[0] : Exit Interface\n\n";
-    trainMenu += "Enter Selection: ";
-
-    try{
-      Console console = System.console();  // store console reference for use
-      
-      while(true){  // infinite loop to remain on this menu until valid selection made
-        clearTerminal();  // clear terminal of prev menu
-        choice = console.readLine(trainMenu);  // print string showing menu as prompt and store user response
-        int val = Integer.parseInt(choice);  // parse/store user response as integer (should be int unless invalid selection)
-
-        // start training
-        if(val == 1){
-          clearTerminal();  // clear prev menu from terminal
-          System.out.println("\n\t*** Beginning Training! ***\n");  // print message indicating training has began
-          trainSGD(mnistTrain);  // train curr network on mnist training set for specified number of epochs (prints digit/overall accuracy after each epoch)
-          System.out.println("\n\t*** Training Complete! ***\n");  // print message indicating number of training epochs were completed
-          return true;  // returns true to the call in startMainInterface() for successful training 
-        }
-        // previous menu
-        else if(val == 9){
-          return false;  // returns false to the call in startMainInterface() for canceled training
-        }
-        // exit interface
-        else if(val == 0){
-          System.exit(1);
-        }
-      }
-    }
-    catch(Exception e){
-      e.printStackTrace();
-    }
-    return false;  // all other cases return false
-  }
-
    // Interface shown once a network is ready for use (trained or imported) allowing... 
    //    - display of network accuracy for both mnist training and testing datasets
    //    - run network on mnist test data showing images/labels for all test inputs
@@ -872,9 +954,6 @@ public class MnistCli {
 
     return;  // return to caller in startMainInterface()
   }
-  */
-
-
-    private record ConfigInput(String inputStr, int input) {}
+  */    
 }
 

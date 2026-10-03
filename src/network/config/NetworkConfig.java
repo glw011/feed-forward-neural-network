@@ -1,4 +1,4 @@
-package source.config;
+package src.network.config;
 
 public class NetworkConfig {
     boolean debug;               // prints additional network info during training/tests for debugging

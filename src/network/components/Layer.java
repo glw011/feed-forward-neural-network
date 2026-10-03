@@ -1,8 +1,8 @@
-package source.network;
+package src.network.components;
 
 import java.util.function.Function;
 
-import source.util.NNMath;
+import src.network.util.NNMath;
 
 public class Layer {
     int prevLayerSize;

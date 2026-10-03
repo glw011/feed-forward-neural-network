@@ -1,14 +1,14 @@
-package source.network;
+package src.network.components;
 
 import java.util.Arrays;
 import java.util.Random;
 
-import source.util.NNMath;
-import source.data.DataSet;
-import source.config.NetworkConfig;
-import source.tracking.NetworkTracking;
-import source.persist.NetworkSnapshot;
-import source.persist.LayersSnapshot;
+import src.network.config.NetworkConfig;
+import src.network.data.DataSet;
+import src.network.persist.LayersSnapshot;
+import src.network.persist.NetworkSnapshot;
+import src.network.tracking.NetworkTracking;
+import src.network.util.NNMath;
 
 public class NeuralNetwork {
     String name;
