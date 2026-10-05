@@ -29,7 +29,7 @@ public class NetworkCli {
     static List<Path> savedNetworks = null;
 
     private enum MenuState {
-        NET_SELECT,
+        SELECT_NET,
         NEW_NET,
         NETWORK,
         LOAD_NET,
@@ -52,12 +52,12 @@ public class NetworkCli {
             System.exit(0);
         }
 
-        MenuState menu = MenuState.NET_SELECT;
+        MenuState menu = MenuState.SELECT_NET;
 
         NetworkContainer neuralNet = new NetworkContainer();
 
         while(true) {
-            if(menu == MenuState.NET_SELECT) {
+            if(menu == MenuState.SELECT_NET) {
                 status = netSelectMenu(console);
                 if(status == 1) {
                     //neuralNet = initDefaultNetwork();
@@ -103,11 +103,11 @@ public class NetworkCli {
                     menu = MenuState.SET_DATA;
                 }
             } else if(menu == MenuState.NETWORK) {
-                status = networkMenu(console);
-                /* TODO: not finished */
+                status = networkMenu(console, neuralNet);
+                /* TODO: not finished (also need to re-verify neuralNet is completely configured prior to networkMenu() call passing it as arg) */
             }
 
-            if(status == 9) menu = MenuState.NET_SELECT;
+            if(status == 9) menu = MenuState.SELECT_NET;
             else if(status == 0) System.exit(status);
             else if(status < 0) throw new UnknownError();
         }
@@ -116,66 +116,125 @@ public class NetworkCli {
     /*
       Network menu
       [1] Network Testing submenu
-            * Test Network (Using Current Testing Config)               **REQUIRES TRAINING STATUS: TRAINED**
-            * Previous Test's Overall Accuracy Stats
-            * Current Testing Configuration
+           [1] Test Network (Using Current Testing Config)               **REQUIRES TRAINING STATUS: TRAINED**
+           [2] Previous Test's Overall Accuracy Stats
+           [3] Current Testing Configuration
                 + Testing Dataset
                 + Image/Label Setting
-            * Adjust Testing Configuration
+           [4] Adjust Testing Configuration
                 + Change Image/Label Setting
                     - Images/Labels for all inputs
                     - Images/Labels only for misclassified inputs
-                    - No Images/Labels  
+                    - No Images/Labels
                 + Change Testing Dataset
                     - Choose Previously Saved Testing Dataset
                     - Import New Testing Dataset from File
+           [8] Return to 'Network Menu'
+           [0] Exit interface
       [2] Network Training submenu
-            * Current Training Status: 'Trained' || 'Untrained'
-            * Re-/Train Network (Using Current Training Config)         **BASED ON TRAINING STATUS**
-            * Current Training Configuration
+           [1] Current Training Status: 'Trained' || 'Untrained'
+           [2] Re-/Train Network (Using Current Training Config)         **BASED ON TRAINING STATUS**
+           [3] Current Training Configuration
                 + Training Dataset
                 + Epochs
                 + Batch Size
                 + Learning Rate
-            * Adjust Training Configuration                             **INFORM THAT ANY ADJUSTMENT CHANGES STATUS TO UNTRAINED**
+           [4] Adjust Training Configuration                             **INFORM THAT ANY ADJUSTMENT CHANGES STATUS TO UNTRAINED**
                 + Change Training Settings
                     - Epochs
                     - Batch Size
                     - Learning Rate
                 + Change Training Dataset
                     - Previously Saved Training Dataset
-                    - New Training Dataset From File                               
-      [3] Network Inference submenu                                   **COMMENT OUT UNTIL FEATURE IS IMPLEMENTED SO LINE IS NOT INCLUDED IN MENU STRING**
+                    - New Training Dataset From File
+           [8] Return to 'Network Menu'
+           [0] Exit interface
+      [3] Network Inference submenu                                     **COMMENT OUT UNTIL FEATURE IS IMPLEMENTED SO LINE IS NOT INCLUDED IN MENU STRING**
             * ...
             * ...
       [4] Network Weights & Biases submenu
-            * Import                                                    **NEED TO VERIFY MATCH WITH NETWORK SPECS**
-            * Export
+           [1] Import                                                    **NEED TO VERIFY MATCH WITH NETWORK SPECS**
+           [2] Export
                 + CSV
                 + (eventually other formats will be added) 
-            * Randomize Weights & Biases                                **INFORM THAT RANDOMIZING WILL CHANGE STATUS TO UNTRAINED**
+           [4] Randomize Weights & Biases                                **INFORM THAT RANDOMIZING WILL CHANGE STATUS TO UNTRAINED**
+           [8] Return to 'Network Menu'
+           [0] Exit interface
       [5] Save Network State submenu
+           [1] Save as new network state
+           [2] Overwrite previous state
+           [8] Return to 'Network Menu'
+           [0] Exit interface
 
       [9] Return to 'Network Selection' menu
       [0] Exit Interface
      */
-    private static int networkMenu(Console console) {
-        int select = -1;
+    private static int networkMenu(Console console, NetworkContainer neuralNet) {
+        /* TODO:
+            - Inference path
+            - 
+         */
+
+
+        int status = -1;
+        int[] validOpts = {0, 9, 1, 2, 3, 4, 5};
+        NetworkSubmenuState menu = NetworkSubmenuState.NET_MENU;
         
-        String netMenu = "\t\t - MNIST Digit Classifier -\n\nNetwork Menu\n";
-        netMenu += "\t[3] : Display network accuracy on MNIST training data\n";
-        netMenu += "\t[4] : Display network accuracy on MNIST testing data\n";
-        netMenu += "\t[5] : Run network on MNIST testing data (Images/Labels for all inputs)\n";
-        netMenu += "\t[6] : Run network on MNIST testing data (Images/Labels for misclassified inputs)\n";
-        netMenu += "\t[7] : Save current network state\n";
-        netMenu += "\t[8] : Export network weights & biases to CSV\n\n";
-        netMenu += "\t[9] : Return to 'Network Selection' menu\n";
-        netMenu += "\t[0] : Exit Interface\n\n";
-        netMenu += "Enter Selection: ";
+        String netMenuStr = "\t\t - Neural Network: %s -\n\nNetwork Menu\n";
+        netMenuStr += "\t[1] : Network testing menu\n";
+        netMenuStr += "\t[2] : Network training menu\n";
+        netMenuStr += "\t[3] : Network inference menu (DISABLED)\n";
+        netMenuStr += "\t[4] : Network weights & biases menu\n";
+        netMenuStr += "\t[5] : Save network state\n\n";
+        netMenuStr += "\t[9] : Return to 'Network Selection' menu\n";
+        netMenuStr += "\t[0] : Exit interface\n\n";
+        netMenuStr += "Enter selection: ";
+
+        String netMenuPrompt = String.format(netMenuStr, neuralNet.network().name());
+        while(true) {
+            
+            if(menu == NetworkSubmenuState.NET_MENU) {
+                clearTerminal(console);
+                status = promptUserForSelection(console, netMenuPrompt, validOpts);
+                
+                if(status == 1) {
+                    menu = NetworkSubmenuState.NET_TEST;
+                } else if(status == 2) {
+                    menu = NetworkSubmenuState.NET_TRAIN;
+                } else if(status == 3) {
+                    menu = NetworkSubmenuState.NET_INFER;
+                } else if(status == 4) {
+                    menu = NetworkSubmenuState.WGTS_BIAS;
+                } else if(status == 5) {
+                    menu = NetworkSubmenuState.NET_SAVE;
+                }
+            } else if(menu == NetworkSubmenuState.NET_TEST) {
+                status = testingSubmenu(console, neuralNet);
+                if(status == 8) menu = NetworkSubmenuState.NET_MENU;
+
+            } else if(menu == NetworkSubmenuState.NET_TRAIN) {
+                status = trainingSubmenu(console, neuralNet);
+                if(status == 8) menu = NetworkSubmenuState.NET_MENU;
+
+            } else if(menu == NetworkSubmenuState.NET_INFER) {
+                status = inferenceSubmenu(console, neuralNet);
+                if(status == 8) menu = NetworkSubmenuState.NET_MENU;
+
+            } else if(menu == NetworkSubmenuState.WGTS_BIAS) {
+                status = weightsBiasesSubmenu(console, neuralNet);
+                if(status == 8) menu = NetworkSubmenuState.NET_MENU;
+
+            } else if(menu == NetworkSubmenuState.NET_SAVE) {
+                status = saveNetStateSubmenu(console, neuralNet);
+                if(status == 8) menu = NetworkSubmenuState.NET_MENU;
+
+            }
+
+            if(status < 0 || status == 0 || status == 9) return status;
+        }
         
         /* TODO: Not finished */
 
-        return select;
     }
 
     private static int netSelectMenu(Console console) {
@@ -652,6 +711,108 @@ public class NetworkCli {
         }    
     }
 
+
+
+    /*
+    [1] Network Testing submenu
+           [1] Test Network (Using Current Testing Config)               **REQUIRES TRAINING STATUS: TRAINED**
+           [2] Previous Test's Overall Accuracy Stats
+           [4] Current Testing Configuration
+                + Testing Dataset
+                + Image/Label Setting
+           [5] Adjust Testing Configuration
+                + Change Image/Label Setting
+                    - Images/Labels for all inputs
+                    - Images/Labels only for misclassified inputs
+                    - No Images/Labels
+                + Change Testing Dataset
+                    - Choose Previously Saved Testing Dataset
+                    - Import New Testing Dataset from File
+           [8] Return to 'Network Menu'
+           [0] Exit interface
+     */
+    private static int testingSubmenu(Console console, NetworkContainer neuralNet) {
+        int select = -1;
+        int[] validOpts = {0, 8, 1, 2, 4, 5};
+
+
+        String testMenuStr = "\t\t - Neural Network: %s -\n\nNetwork Testing Menu\n";
+        testMenuStr += "\t[1] : Test network (using current test settings)\n";
+        testMenuStr += "\t[2] : Overall accuracy during latest test run\n\n";
+        testMenuStr += "\t[4] : Show test settings\n";
+        testMenuStr += "\t[5] : Adjust test settings\n\n";
+        testMenuStr += "\t[8] : Return to '%s' network menu\n";
+        testMenuStr += "\t[0] : Exit Interface\n\n";
+        testMenuStr += "Enter selection: ";
+
+        String testMenuPrompt = String.format(testMenuStr, neuralNet.network().name(), neuralNet.network().name());
+        while(true) {
+            clearTerminal(console);
+            select = promptUserForSelection(console, testMenuPrompt, validOpts);
+
+            if(select == 0 || select == 8 || select < 0) {
+                return select;
+            } else if(select == 1) {
+                /* TODO: verify other necessary fields before beginning testing */
+
+                if(neuralNet.testingData() != null && neuralNet.testingData().type() == DataSetType.TEST) {
+                    /* TODO: start the test run */
+                } else {
+                    // caller needs to throw custom exception based on returned val eventually, return -1 for now though
+                    return -1;
+                }
+
+            } else if(select == 2) {
+
+            } else if(select == 4) {
+
+            } else if(select == 5) {
+
+            }
+        }
+
+        /* TODO: Not finished */
+
+        //return select;
+    }
+
+    private static int trainingSubmenu(Console console, NetworkContainer neuralNet) {
+        int select = -1;
+
+        /* TODO: Not finished */
+
+        return select;
+    }
+
+    private static int inferenceSubmenu(Console console, NetworkContainer neuralNet) {
+        int select = -1;
+
+        /* TODO: Not finished */
+
+        return select;
+    }
+
+    private static int weightsBiasesSubmenu(Console console, NetworkContainer neuralNet) {
+        int select = -1;
+
+        /* TODO: Not finished */
+
+        return select;
+    }
+
+    private static int saveNetStateSubmenu(Console console, NetworkContainer neuralNet) {
+        int select = -1;
+
+        /* TODO: Not finished */
+
+        return -1;
+    }
+
+
+
+
+
+
     // Prompts user for input and returns record containing str input + parsed int if parsed int >= `minVal` and <= `maxVal`
     private static ConfigInput getIntConfigInput(Console console, String prompt, int minVal, int maxVal) {
         String in = "";
@@ -788,172 +949,49 @@ public class NetworkCli {
     }
 
 
+
+
+
+
+    private static int performTestingRun(Console console, NetworkContainer neuralNet) {
+        neuralNet.performTestRun();
+        
+        /* TODO: not finished */
+
+        return -1;
+    }
+
+
+
+
+
+
+
+
     private record ConfigInput(String inputStr, int input) {}
 
-
-  /*
-   // Interface shown once a network is ready for use (trained or imported) allowing... 
-   //    - display of network accuracy for both mnist training and testing datasets
-   //    - run network on mnist test data showing images/labels for all test inputs
-   //    - run network on mnist test data showing images/labels only for misclassified inputs
-   //    - save the current configuration of the network
-   //    - return to network select menu
-   //    - exit
-   //  
-  private static void startNetworkMenu(){
-    boolean goMainMenu = false;  // flag signaling to return to the network select menu
-    boolean exportSuccess = false;  // flag signaling that the current network was successfully written to disk
-  
-
-    //     - MNIST Digit Classifier -
-    // Current Network Menu
-    //   [3] : Display Network Accuracy on MNIST Training Data
-    //   [4] : Display Network Accuracy on MNIST Testing Data
-    //   [5] : Run Network on MNIST Testing Data (Images/Labels for All Inputs)
-    //   [6] : Run Network on MNIST Testing Data (Images/Labels for Misclassified Inputs)
-    //   [7] : Save Current Network Configuration
-    //
-    //   [9] : Return to Network Select Menu  
-    //   [0] : Exit Interface
-    //
-    // Enter Selection: 
-    // create string containing the menu options to display to user
-    String netMenu = "\t\t - MNIST Digit Classifier -\nCurrent Network Menu\n";
-    netMenu += "\t[3] : Display Network Accuracy on MNIST Training Data\n";
-    netMenu += "\t[4] : Display Network Accuracy on MNIST Testing Data\n";
-    netMenu += "\t[5] : Run Network on MNIST Testing Data (Images/Labels for All Inputs)\n";
-    netMenu += "\t[6] : Run Network on MNIST Testing Data (Images/Labels for Misclassified Inputs)\n";
-    netMenu += "\t[7] : Save Current Network Configuration\n\n";
-    netMenu += "\t[9] : Return to Network Select Menu\n";
-    netMenu += "\t[0] : Exit Interface\n\n";
-    netMenu += "Enter Selection: ";
-
-    String prompt, currMenu, choice;  // storage for prompt to user, string containing curr menu, and user response to prev prompt
-
-    try{
-      Console console = System.console();  // store reference to console
-
-      while(!goMainMenu){
-        // Clear prev menu
-        clearTerminal();
-
-        // Get user selection via prompting string containing menu options to user
-        choice = console.readLine(netMenu);
-        // Parse/store user choice given as string as an integer 
-        int val = Integer.parseInt(choice);
-
-        // Display Accuracy on train data
-        if(val == 3){
-          // clear prev menu
-          clearTerminal();
-          // Test entire training dataset
-          getDigitAccuracy(mnistTrain);
-          // Copy curr digit accuracy stats to send to print function 
-          // ** started copying arrays rather than using globals trying to debug divide by zero exception in accuracy stats and never changed back after solving
-          int[] correctDigs = class_correct_real.clone();
-          int[] totlDigs = class_correct_expect.clone();
-          // Print the accuracy result for each digit after testing entire set
-          printDigitAccuracy(mnistTrain.getSize(), correctDigs, totlDigs);
-          // Wait for input from user before clearing terminal and returning to prev menu
-          console.readLine("\nPress ANY Key to Return to Current Network Menu");  
-        }
-        // Display Accuracy on test data
-        else if(val == 4){
-          // clear prev menu
-          clearTerminal();
-          // Test entire testing dataset
-          getDigitAccuracy(mnistTest);
-          // Copy curr digit accuracy stats to send to print function
-          int[] correctDigs = class_correct_real.clone();
-          int[] totlDigs = class_correct_expect.clone();
-          // Print the accuracy results for each digit after testing entire set
-          printDigitAccuracy(mnistTest.getSize(), correctDigs, totlDigs);
-          console.readLine("\nPress ANY Key to Return to Current Network Menu");  
-        }
-        // Run network on test data while showing all images/labels
-        else if(val == 5){
-          // clear prev menu
-          clearTerminal();
-          // test mnist test dataset showing labels and images for each input
-          runDigitTest(mnistTest);
-          // wait for input from user before returning to prev menu
-          console.readLine("\nPress ANY Key to Return to Current Network Menu");  
-        }
-        // Run network on test data and show only misclassified digits
-        else if(val == 6){
-          // clear prev menu
-          clearTerminal();
-          // run network on mnist test data showing misclass'd (prompting user to continue or return to menu after each)
-          getMisclasses();
-        }
-        // Export network configs
-        else if(val == 7){
-          exportSuccess = false;  // reset flag to false
-          
-          // store strings for curr sub-menu title and prompt
-          currMenu = "\t\t - MNIST Digit Classifier -\nSave Current Network\n\n\n\n";
-          prompt = "\nEnter filename to save the current network as (e.g. 'myNetwork.csv')...\nSave as: ";
-          
-          // clear prev menu
-          clearTerminal();
-          System.out.print(currMenu);  // display sub-menu title
-          String wtsFilename = console.readLine(prompt);  // prompt user for filename to save file as and store response
-          exportSuccess = exportWeights(wtsFilename);  // attempt to write network config to disk (true: successful export, false: unsuccessful export)
-          if(exportSuccess){
-            clearTerminal();  // clear prev menu
-            System.out.println(currMenu);  // re-print curr menu title
-            System.out.println(String.format("Successfully Saved Current Network Configuration as '%s'!", wtsFilename));  // print success
-            console.readLine("\nPress ANY Key to Return to Current Network Menu");  // wait for user input to return to prev menu
-          }
-
-          while(!exportSuccess){  // while the network has not been saved to disk...
-            clearTerminal();  // clear prev menu
-            System.out.print(currMenu);  // re-print sub-menu title
-            // inform user that network was not saved
-            System.out.println(String.format("COULD NOT SAVE NETWORK AS '%s'!\nEnsure file does not already exist in directory.\n", wtsFilename));
-            // prompt user to either input 7 to re-enter filename and try again, all other input will return to menu for current network
-            choice = console.readLine("Current Network Menu\n\t[7] : Re-enter Filename to Save Network As\n\tANY Other Returns to Current Network Menu\n\nEnter Selection: ");
-            // if user selects inputs 7 to re-enter the filename...
-            if(Integer.parseInt(choice) == 7){
-              clearTerminal();  // clear prev menu
-              System.out.println(currMenu);  // re-print sub-menu title
-              // create string asking user to re-enter a filename
-              prompt = "\nRe-enter filename to save current network as (e.g. 'myNetwork.csv')...\nSave as: ";
-
-              // Prompt user and store filename then use to attempt export again
-              wtsFilename = console.readLine(prompt);
-              exportSuccess = exportWeights(wtsFilename);  // flag updates to true if export successful, else return to top of inner while loop
-              if(exportSuccess){
-                clearTerminal();  // clear prev menu
-                System.out.println(currMenu);  // re-print curr menu title
-                System.out.println(String.format("Successfully Saved Current Network Configuration as '%s'!", wtsFilename));  // print success
-                console.readLine("\nPress ANY Key to Return to Current Network Menu");  // wait for user input to return to prev menu
-              }
-            }
-            // all other user input returns to prev menu, so break out of inner while loop (returning to top of outer while loop, i.e. prev menu)
-            else{break;}
-          }          
-        }
-        // Return to main menu
-        else if(val == 9){
-          // update flag to true which ends outer while loop and returns to caller startMainInterface() (i.e. returns to displaying Network Selection Menu)
-          goMainMenu = true;
-        }
-        // Exit
-        else if(val == 0){
-          goMainMenu = true;  // not really needed but just to cover all bases
-          System.exit(1);
-        }
-        // Otherwise inform user selection was invalid
-        else{console.printf("User Entered: '%s' - NOT VALID SELECTION!", choice);}
-      }
-    }
-    catch(Exception e){
-      e.printStackTrace();
+    private enum NetworkSubmenuState {
+        NET_MENU,
+        NET_TEST,
+        NET_TRAIN,
+        NET_INFER,
+        WGTS_BIAS,
+        NET_SAVE,
     }
 
-    return;  // return to caller in startMainInterface()
-  }
-  */    
+    // REMINDER: using enum here to allow easier future limitations on this setting since it is only useful for image classifiers 
+    private enum TestImageSetting {
+        ALL("Display images for ALL test cases"),
+        MISS("Display images for only MISCLASSIFIED test cases"),
+        NONE("Do NOT display test case images");
+
+        private final String desc;
+
+        TestImageSetting(String description) {
+            this.desc = description;
+        }
+
+        public String desc() {return this.desc;}
+    }
 }
 

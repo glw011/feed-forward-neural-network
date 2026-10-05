@@ -8,8 +8,9 @@ public class NetworkSnapshot {
     String name;
     NetworkConfig config;
     LayerWeightsBiases[] weightsBiases;
+    boolean isTrained;
 
-    public NetworkSnapshot(String name, NetworkConfig config, Layer[] hiddenLayers, Layer outLayer) {
+    public NetworkSnapshot(String name, NetworkConfig config, Layer[] hiddenLayers, Layer outLayer, boolean trainingStatus) {
         this.name = name;
         this.config = config;
         this.weightsBiases = new LayerWeightsBiases[config.totalLayers()];
@@ -22,6 +23,8 @@ public class NetworkSnapshot {
         this.weightsBiases[config.totalLayers()-1] = new LayerWeightsBiases(
                                                                 outLayer.weights(),
                                                                 outLayer.bias());
+
+        this.isTrained = trainingStatus;
     }
 
     NetworkSnapshot() {}
@@ -57,6 +60,8 @@ public class NetworkSnapshot {
     public NetworkConfig config() {return this.config;}
 
     public String name() {return this.name;}
+
+    public boolean trainingStatus() {return this.isTrained;}
 
     private record LayerWeightsBiases(double[][] weights, double[] biases) {}
 }

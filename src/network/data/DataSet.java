@@ -72,6 +72,7 @@ public class DataSet {
     public double[][] inputs() {return this.inputs;}
     public double[][] labels() {return this.labels;}
     public Integer[] indices() {return this.indices;}
+    public DataSetType type() {return this.type;}
 
     // reads unlabeled data as Doubles, applies the passed normalize function to each parsed val, and returns double[][] containing results 
     private static double[][] readUnlabeledDataFromCsv(String filename, Function<Double, Double> normalize) throws Exception {

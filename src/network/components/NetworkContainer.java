@@ -1,6 +1,8 @@
 package src.network.components;
 
 import src.network.data.DataSet;
+import src.network.data.DataSetType;
+import src.network.stats.NetworkTracker;
 
 public class NetworkContainer {
     NeuralNetwork network;
@@ -38,5 +40,14 @@ public class NetworkContainer {
                     return false 
         */
        return false;
+    }
+
+
+
+    public void performTestRun() {
+        if(this.testingData == null || this.testingData.type() != DataSetType.TEST) 
+            throw new UnknownError("testing dataset is null or not of type `TEST`");
+
+        NetworkTracker tracker = NeuralNetwork.testNetworkOnDataset(this.network, this.testingData);
     }
 }

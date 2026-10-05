@@ -2,7 +2,7 @@ package src.network.config;
 
 public class NetworkConfig {
     boolean debug;               // prints additional network info during training/tests for debugging
-    boolean trackOutput;         // track the accuracy stats of individual digits
+    boolean trackTrainOutput;         // track the accuracy stats of individual digits
     boolean showDistributions;   // show distribution for output when running network on testing data
 
     int inputSize;               // number of nodes in input layer
@@ -15,7 +15,7 @@ public class NetworkConfig {
     
     NetworkConfig() {
         this.debug = false;
-        this.trackOutput = true;
+        this.trackTrainOutput = true;
         this.showDistributions = true;
 
         this.inputSize = 784;
@@ -31,7 +31,7 @@ public class NetworkConfig {
     public NetworkConfig(int inputSize, int outputSize, int[] hiddenLayerSizes,
                          int batchSize, int epochs, double learnRate) {
         this.debug = false;
-        this.trackOutput = true;
+        this.trackTrainOutput = true;
         this.showDistributions = true;
 
         this.inputSize = inputSize;
@@ -45,7 +45,7 @@ public class NetworkConfig {
 
     public NetworkConfig(NetworkConfig other) {
         this.debug = other.debug;
-        this.trackOutput = other.trackOutput;
+        this.trackTrainOutput = other.trackTrainOutput;
         this.showDistributions = other.showDistributions;
 
         this.inputSize = other.inputSize;
@@ -62,8 +62,8 @@ public class NetworkConfig {
     public void debugOn() {this.debug = true;}
     public void debugOff() {this.debug = false;}
 
-    public void outputTrackOn() {this.trackOutput = true;}
-    public void outputTrackOff() {this.trackOutput = false;}
+    public void trackTrainOutputOn() {this.trackTrainOutput = true;}
+    public void trackTrainOutputOff() {this.trackTrainOutput = false;}
 
     public void distributionsOn() {this.showDistributions = true;}
     public void distributionsOff() {this.showDistributions = false;}
@@ -75,7 +75,7 @@ public class NetworkConfig {
     }
 
     public boolean debug() {return this.debug;}
-    public boolean trackOutput() {return this.trackOutput;}
+    public boolean trackTrainOutput() {return this.trackTrainOutput;}
     public boolean showDistributions() {return this.showDistributions;}
 
     public int inputSize() {return this.inputSize;}

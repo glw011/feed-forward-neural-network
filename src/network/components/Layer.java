@@ -18,7 +18,7 @@ public class Layer {
 
     Function<double[], double[]> activFun;
 
-    private Layer(int size, int prevLayerSize){
+    private Layer(int size, int prevLayerSize) {
         this.prevLayerSize = prevLayerSize;
         this.size = size;
         this.biases = new double[size];
@@ -31,7 +31,7 @@ public class Layer {
         this.biasGrads = new double[size];
     }
     
-    public Layer(int size, int prevLayerSize, ActivFunction activFun){
+    public Layer(int size, int prevLayerSize, ActivFunction activFun) {
         this.prevLayerSize = prevLayerSize;
         this.size = size;
         this.biases = new double[size];
